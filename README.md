@@ -62,3 +62,6 @@
 
 - `ssize_t send_message(int socket_fd, const char message[])`: Sends the message through socket.
 - `ssize_t receive_message(int socket_fd, char message[])`: Receives the message through socket.
+
+### Members
+- Chris Hickman
