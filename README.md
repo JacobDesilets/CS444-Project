@@ -65,3 +65,5 @@
 
 ### Members
 - Chris Hickman
+- Charles Jordan
+
