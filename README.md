@@ -66,4 +66,4 @@
 ### Members
 - Chris Hickman
 - Charles Jordan
-
+- Jacob Desilets
