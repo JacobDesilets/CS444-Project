@@ -145,6 +145,9 @@ bool process_message(int session_id, const char message[]) {
     // Hint: Also need to check if the given variable does exist (i.e., it has been assigned with some value)
     // for the first variable and the second variable, respectively.
 
+    // this could be as simple as using an if statement
+    // after every strtok section with a return false
+
     // Makes a copy of the string since strtok() will modify the string that it is processing.
     char data[BUFFER_LEN];
     strcpy(data, message);
@@ -152,6 +155,10 @@ bool process_message(int session_id, const char message[]) {
     // Processes the result variable.
     token = strtok(data, " ");
     result_idx = token[0] - 'a';
+
+    if(token[1] != '\0') {
+        return false;
+    }
 
     // Processes "=".
     token = strtok(NULL, " ");
@@ -328,6 +335,7 @@ void browser_handler(int browser_socket_fd) {
         bool data_valid = process_message(session_id, message);
         if (!data_valid) {
             // TODO: For Part 3.1, add code here to send the error message to the browser.
+            printf("an input error occured");
             continue;
         }
 
