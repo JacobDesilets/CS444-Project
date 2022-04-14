@@ -98,8 +98,10 @@ void server_listener() {
         char message[BUFFER_LEN];
         receive_message(server_socket_fd, message);
 
-        // TODO: For Part 3.1, add code here to print the error message.
-
+        if(!strncmp(message, "ERROR", 5)) {
+            strcpy(message, "Invalid Input!");
+            puts(message);
+        }
         puts(message);
     }
 }
