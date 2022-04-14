@@ -305,6 +305,9 @@ void browser_handler(int browser_socket_fd) {
 
     printf("Successfully accepted Browser #%d for Session #%d.\n", browser_id, session_id);
 
+    // TEST BROADCAST PLEASE IGNORE
+    broadcast(session_id, "Hello there!");
+
     while (true) {
         char message[BUFFER_LEN];
         char response[BUFFER_LEN];
