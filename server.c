@@ -118,6 +118,7 @@ bool is_str_numeric(const char str[]) {
 
     int i = 1;
     while (str[i] != '\0') {
+        // TODO doesn't count decimal points
         if (!(isdigit(str[i]) || str[i] == '.')) {
             return false;
         }
@@ -156,12 +157,21 @@ bool process_message(int session_id, const char message[]) {
     token = strtok(data, " ");
     result_idx = token[0] - 'a';
 
-    if(token[1] != '\0') {
+    printf("1st token: '%s'\n", token);
+    if(token[1] != '\0' || result_idx < 0 || result_idx > 25) {
+        printf("1st token invalid\n");
         return false;
     }
 
+
     // Processes "=".
     token = strtok(NULL, " ");
+
+    printf("2nd token: '%s'\n", token);
+    if(token[0] != '=' || token[1] != '\0') {
+        printf("2nd token invalid\n");
+        return false;
+    }
 
     // Processes the first variable/value.
     token = strtok(NULL, " ");
@@ -169,8 +179,17 @@ bool process_message(int session_id, const char message[]) {
         first_value = strtod(token, NULL);
     } else {
         int first_idx = token[0] - 'a';
+
+        if(token[1] != '\0' || first_idx < 0 || first_idx > 25) {
+            printf("3rd token invalid\n");
+            return false;
+        }
+
         first_value = session_list[session_id].values[first_idx];
     }
+
+    printf("3rd token: '%s'\n", token);
+
 
     // Processes the operation symbol.
     token = strtok(NULL, " ");
@@ -181,17 +200,48 @@ bool process_message(int session_id, const char message[]) {
     }
     symbol = token[0];
 
+    printf("4th token: '%s'\n", token);
+
+    if(token[1] != '\0' || 
+        !(symbol != '+' && symbol != '-' &&
+            symbol != '*' && symbol != '/')
+        ) {
+        printf("4st token invalid\n");
+        return false;
+    }
+
+
     // Processes the second variable/value.
     token = strtok(NULL, " ");
     if (is_str_numeric(token)) {
         second_value = strtod(token, NULL);
     } else {
+        if(token == NULL) {
+            printf("5th token empty with operator\n");
+            return false;
+        }
+        
         int second_idx = token[0] - 'a';
+
+        if(token[1] != '\0' || second_idx < 0 || second_idx > 25) {
+            printf("3rd token invalid\n");
+            return false;
+        }
+
         second_value = session_list[session_id].values[second_idx];
     }
 
+    printf("5th token: '%s'\n", token);
+
     // No data should be left over thereafter.
     token = strtok(NULL, " ");
+
+    if(token != NULL) {
+        printf("5th token invalid\n");
+        return false;
+    }
+
+    printf("6th token: '%s'\n", token);
 
     session_list[session_id].variables[result_idx] = true;
 
