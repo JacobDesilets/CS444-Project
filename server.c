@@ -142,9 +142,7 @@ bool process_message(int session_id, const char message[]) {
     char symbol;
     double second_value;
 
-    // TODO: For Part 3.1, write code to determine if the input is invalid and return false if it is.
-    // Hint: Also need to check if the given variable does exist (i.e., it has been assigned with some value)
-    // for the first variable and the second variable, respectively.
+    // Part 3.1, error checking
 
     // Makes a copy of the string since strtok() will modify the string that it is processing.
     char data[BUFFER_LEN];
@@ -400,7 +398,7 @@ void browser_handler(int browser_socket_fd) {
 
         bool data_valid = process_message(session_id, message);
         if (!data_valid) {
-            // TODO: For Part 3.1, add code here to send the error message to the browser.
+            // Part 3.1, send the error message to the browser.
             printf("ERROR: Invalid user input\n");
             broadcast(session_id, "ERROR\n");
             continue;
