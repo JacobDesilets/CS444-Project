@@ -146,29 +146,29 @@ bool process_message(int session_id, const char message[]) {
     // Hint: Also need to check if the given variable does exist (i.e., it has been assigned with some value)
     // for the first variable and the second variable, respectively.
 
-    // this could be as simple as using an if statement
-    // after every strtok section with a return false
-
     // Makes a copy of the string since strtok() will modify the string that it is processing.
     char data[BUFFER_LEN];
     strcpy(data, message);
 
     // Processes the result variable.
     token = strtok(data, " ");
+    if(token == NULL) {
+        printf("1st token empty\n");
+        return false;
+    }
     result_idx = token[0] - 'a';
 
-    printf("1st token: '%s'\n", token);
+    // first token error checking
     if(token[1] != '\0' || result_idx < 0 || result_idx > 25) {
         printf("1st token invalid\n");
         return false;
     }
 
-
     // Processes "=".
     token = strtok(NULL, " ");
 
-    printf("2nd token: '%s'\n", token);
-    if(token[0] != '=' || token[1] != '\0') {
+    // second token error checking
+    if(token == NULL || token[0] != '=' || token[1] != '\0') {
         printf("2nd token invalid\n");
         return false;
     }
@@ -178,18 +178,29 @@ bool process_message(int session_id, const char message[]) {
     if (is_str_numeric(token)) {
         first_value = strtod(token, NULL);
     } else {
+
+        // first variable error checking part 1
+        if(token == NULL) {
+            printf("3rd token empty\n");
+            return false;
+        }
+
         int first_idx = token[0] - 'a';
 
+        // first variable error checking part 2
         if(token[1] != '\0' || first_idx < 0 || first_idx > 25) {
             printf("3rd token invalid\n");
             return false;
         }
 
+        // first variable error checking part 3
+        if(!session_list[session_id].variables[first_idx]) {
+            printf("First variable DNE\n");
+            return false;
+        }
+
         first_value = session_list[session_id].values[first_idx];
     }
-
-    printf("3rd token: '%s'\n", token);
-
 
     // Processes the operation symbol.
     token = strtok(NULL, " ");
@@ -200,11 +211,10 @@ bool process_message(int session_id, const char message[]) {
     }
     symbol = token[0];
 
-    printf("4th token: '%s'\n", token);
-
+    // operator error checking
     if(token[1] != '\0' || 
-        !(symbol != '+' && symbol != '-' &&
-            symbol != '*' && symbol != '/')
+        !(symbol == '+' || symbol == '-' ||
+            symbol == '*' || symbol == '/')
         ) {
         printf("4st token invalid\n");
         return false;
@@ -216,6 +226,8 @@ bool process_message(int session_id, const char message[]) {
     if (is_str_numeric(token)) {
         second_value = strtod(token, NULL);
     } else {
+
+        // second variable error checking part 1
         if(token == NULL) {
             printf("5th token empty with operator\n");
             return false;
@@ -223,25 +235,29 @@ bool process_message(int session_id, const char message[]) {
         
         int second_idx = token[0] - 'a';
 
+        // first variable error checking part 2
         if(token[1] != '\0' || second_idx < 0 || second_idx > 25) {
-            printf("3rd token invalid\n");
+            printf("5th token invalid\n");
+            return false;
+        }
+
+        // first variable error checking part 3
+        if(!session_list[session_id].variables[second_idx]) {
+            printf("Second variable DNE\n");
             return false;
         }
 
         second_value = session_list[session_id].values[second_idx];
     }
 
-    printf("5th token: '%s'\n", token);
-
     // No data should be left over thereafter.
     token = strtok(NULL, " ");
 
+    // end of input error checking
     if(token != NULL) {
-        printf("5th token invalid\n");
+        printf("6th token invalid\n");
         return false;
     }
-
-    printf("6th token: '%s'\n", token);
 
     session_list[session_id].variables[result_idx] = true;
 
@@ -385,7 +401,8 @@ void browser_handler(int browser_socket_fd) {
         bool data_valid = process_message(session_id, message);
         if (!data_valid) {
             // TODO: For Part 3.1, add code here to send the error message to the browser.
-            printf("an input error occured");
+            printf("ERROR: Invalid user input\n");
+            broadcast(session_id, "ERROR\n");
             continue;
         }
 
