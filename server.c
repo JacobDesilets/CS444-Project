@@ -143,6 +143,7 @@ bool process_message(int session_id, const char message[]) {
     double first_value;
     char symbol;
     double second_value;
+    double result;
 
     // Part 3.1, error checking
 
@@ -276,15 +277,20 @@ bool process_message(int session_id, const char message[]) {
     // END SESSION LOCK
 
     if (symbol == '+') {
-        session_list[session_id].values[result_idx] = first_value + second_value;
+        result = first_value + second_value;
     } else if (symbol == '-') {
-        session_list[session_id].values[result_idx] = first_value - second_value;
+        result = first_value - second_value;
     } else if (symbol == '*') {
-        session_list[session_id].values[result_idx] = first_value * second_value;
+        result = first_value * second_value;
     } else if (symbol == '/') {
-        session_list[session_id].values[result_idx] = first_value / second_value;
+        result = first_value / second_value;
+    } else {
+        return false;
     }
-    
+
+    // START SESSION LOCK
+    session_list[session_id].values[result_idx] = result;
+    // END SESSION LOCK
 
     return true;
 }
@@ -328,7 +334,9 @@ void load_all_sessions() {
     	get_session_file_path(i, s);
 
     	if(file = fopen(s, "r")){
+            // START SESSION LOCK
     	    fread(&session_list[i], sizeof(struct session_struct), 1, file);			
+            // END SESSION LOCK
             fclose(file);       
         }
     }
@@ -343,7 +351,9 @@ void save_session(int session_id) {
     // Part 1.1 file operation code
 	FILE *file;
 	char s[SESSION_PATH_LEN];
+    // START SESSION LOCK
 	struct session_struct current = session_list[session_id];	
+    // END SESSION LOCK
 
 	get_session_file_path(session_id, s);
 	file = fopen(s, "w");
