@@ -84,7 +84,9 @@ void start_server(int port);
  */
 void session_to_str(int session_id, char result[]) {
     memset(result, 0, BUFFER_LEN);
+    // START SESSION LOCK
     session_t session = session_list[session_id];
+    // END SESSION LOCK
 
     for (int i = 0; i < NUM_VARIABLES; ++i) {
         if (session.variables[i]) {
@@ -141,6 +143,7 @@ bool process_message(int session_id, const char message[]) {
     double first_value;
     char symbol;
     double second_value;
+    double result;
 
     // Part 3.1, error checking
 
@@ -192,19 +195,26 @@ bool process_message(int session_id, const char message[]) {
         }
 
         // first variable error checking part 3
+        // START SESSION LOCK, both ends are needed because of the return
         if(!session_list[session_id].variables[first_idx]) {
             printf("First variable DNE\n");
+            // END SESSION LOCK
             return false;
         }
+        // END SESSION LOCK
 
+        // START SESSION LOCK
         first_value = session_list[session_id].values[first_idx];
+        // END SESSION LOCK
     }
 
     // Processes the operation symbol.
     token = strtok(NULL, " ");
     if (token == NULL) {
+        // START SESSION LOCK
         session_list[session_id].variables[result_idx] = true;
         session_list[session_id].values[result_idx] = first_value;
+        // END SESSION LOCK
         return true;
     }
     symbol = token[0];
@@ -240,12 +250,17 @@ bool process_message(int session_id, const char message[]) {
         }
 
         // first variable error checking part 3
+        // START SESSION LOCK, both ends are needed because of the return
         if(!session_list[session_id].variables[second_idx]) {
             printf("Second variable DNE\n");
+            // END SESSION LOCK
             return false;
         }
+        // END SESSION LOCK
 
+        // START SESSION LOCK
         second_value = session_list[session_id].values[second_idx];
+        // END SESSION LOCK
     }
 
     // No data should be left over thereafter.
@@ -257,17 +272,25 @@ bool process_message(int session_id, const char message[]) {
         return false;
     }
 
+    // START SESSION LOCK
     session_list[session_id].variables[result_idx] = true;
+    // END SESSION LOCK
 
     if (symbol == '+') {
-        session_list[session_id].values[result_idx] = first_value + second_value;
+        result = first_value + second_value;
     } else if (symbol == '-') {
-        session_list[session_id].values[result_idx] = first_value - second_value;
+        result = first_value - second_value;
     } else if (symbol == '*') {
-        session_list[session_id].values[result_idx] = first_value * second_value;
+        result = first_value * second_value;
     } else if (symbol == '/') {
-        session_list[session_id].values[result_idx] = first_value / second_value;
+        result = first_value / second_value;
+    } else {
+        return false;
     }
+
+    // START SESSION LOCK
+    session_list[session_id].values[result_idx] = result;
+    // END SESSION LOCK
 
     return true;
 }
@@ -280,8 +303,10 @@ bool process_message(int session_id, const char message[]) {
  */
 void broadcast(int session_id, const char message[]) {
     for (int i = 0; i < NUM_BROWSER; ++i) {
+        // START BROWSER LOCK
         if (browser_list[i].in_use && browser_list[i].session_id == session_id) {
             send_message(browser_list[i].socket_fd, message);
+        // END BROWSER LOCK
         }
     }
 }
@@ -300,24 +325,21 @@ void get_session_file_path(int session_id, char path[]) {
  * Loads every session from the disk one by one if it exists.
  */
 void load_all_sessions() {
-    // TODO: For Part 1.1, write your file operation code here.
-    // Hint: Use get_session_file_path() to get the file path for each session.
-    //       Don't forget to load all of sessions on the disk.
-
+    // Part 1.1 file operation code.
 	FILE *file;
 	char s[SESSION_PATH_LEN];
 
     for(int i = 0; i < NUM_SESSIONS; i++){
 
-	get_session_file_path(i, s);
+    	get_session_file_path(i, s);
 
-	if(file = fopen(s, "r")){
-	    fread(&session_list[i], sizeof(struct session_struct), 1, file);			
+    	if(file = fopen(s, "r")){
+            // START SESSION LOCK
+    	    fread(&session_list[i], sizeof(struct session_struct), 1, file);			
+            // END SESSION LOCK
             fclose(file);       
-}
-			
-    }    
-
+        }
+    }
 }
 
 /**
@@ -326,11 +348,12 @@ void load_all_sessions() {
  * @param session_id the session ID
  */
 void save_session(int session_id) {
-    // TODO: For Part 1.1, write your file operation code here.
-    // Hint: Use get_session_file_path() to get the file path for each session.
+    // Part 1.1 file operation code
 	FILE *file;
 	char s[SESSION_PATH_LEN];
+    // START SESSION LOCK
 	struct session_struct current = session_list[session_id];	
+    // END SESSION LOCK
 
 	get_session_file_path(session_id, s);
 	file = fopen(s, "w");
@@ -353,10 +376,12 @@ int register_browser(int browser_socket_fd) {
     //  code around the critical sections identified.
 
     for (int i = 0; i < NUM_BROWSER; ++i) {
+        // START BROWSER LOCK
         if (!browser_list[i].in_use) {
             browser_id = i;
             browser_list[browser_id].in_use = true;
             browser_list[browser_id].socket_fd = browser_socket_fd;
+            // END BROWSER LOCK
             break;
         }
     }
@@ -367,14 +392,19 @@ int register_browser(int browser_socket_fd) {
     int session_id = strtol(message, NULL, 10);
     if (session_id == -1) {
         for (int i = 0; i < NUM_SESSIONS; ++i) {
+            // START SESSION LOCK
             if (!session_list[i].in_use) {
                 session_id = i;
                 session_list[session_id].in_use = true;
+                // END SESSION LOCK
                 break;
             }
         }
     }
+
+    // START BROWSER LOCK
     browser_list[browser_id].session_id = session_id;
+    // END BROWSER LOCK
 
     sprintf(message, "%d", session_id);
     send_message(browser_socket_fd, message);
@@ -394,8 +424,10 @@ void browser_handler(int browser_socket_fd) {
 
     browser_id = register_browser(browser_socket_fd);
 
+    // START BROWSER LOCK
     int socket_fd = browser_list[browser_id].socket_fd;
     int session_id = browser_list[browser_id].session_id;
+    // END BROWSER LOCK
 
     printf("Successfully accepted Browser #%d for Session #%d.\n", browser_id, session_id);
 
@@ -408,6 +440,7 @@ void browser_handler(int browser_socket_fd) {
 
         if ((strcmp(message, "EXIT") == 0) || (strcmp(message, "exit") == 0)) {
             close(socket_fd);
+            // BROWSER LOCK this may need to be revised if needed? not sure though
             pthread_mutex_lock(&browser_list_mutex);
             browser_list[browser_id].in_use = false;
             pthread_mutex_unlock(&browser_list_mutex);
