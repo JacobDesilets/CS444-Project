@@ -111,7 +111,6 @@ void server_listener() {
 
         if(!strncmp(message, "ERROR", 5)) {
             strcpy(message, "Invalid Input!");
-            puts(message);
         }
         puts(message);
     }
@@ -162,7 +161,9 @@ void start_browser(const char host_ip[], int port) {
     while (browser_on) {
         char message[BUFFER_LEN];
         read_user_input(message);
-	    if(message == exit)break;
+	    if(message == exit) {
+            break; // @TODO this gives a warning?
+        }
         send_message(server_socket_fd, message);
     }
 
