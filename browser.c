@@ -102,6 +102,14 @@ void register_server() {
 }
 
 /**
+ * pthread_create() expects a function of this signature. Probably uncecessary but
+ * it gets rid of the compile warning.
+ */
+void* server_listener_starter(void* arg) {
+    server_listener();
+}
+
+/**
  * Listens to the server; keeps receiving and printing the messages from the server.
  */
 void server_listener() {
@@ -155,7 +163,7 @@ void start_browser(const char host_ip[], int port) {
 
     // Starts the server listener thread
     pthread_t listener_thread_id;
-    pthread_create(&listener_thread_id, NULL, server_listener, NULL);
+    pthread_create(&listener_thread_id, NULL, server_listener_starter, NULL);
 
     // Main loop to read in the user's input and send it out.
     while (browser_on) {
