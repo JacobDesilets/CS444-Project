@@ -118,7 +118,7 @@ void server_listener() {
         receive_message(server_socket_fd, message);
 
         if(!strncmp(message, "ERROR", 5)) {
-            strcpy(message, "Invalid Input!");
+            strcpy(message, "Invalid Input!\n");
         }
         puts(message);
     }
