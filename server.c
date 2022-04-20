@@ -305,7 +305,9 @@ void broadcast(int session_id, const char message[]) {
     for (int i = 0; i < NUM_BROWSER; ++i) {
         // START BROWSER LOCK
         if (browser_list[i].in_use && browser_list[i].session_id == session_id) {
+            pthread_mutex_lock(&browser_list_mutex);
             send_message(browser_list[i].socket_fd, message);
+            pthread_mutex_unlock(&browser_list_mutex);
         // END BROWSER LOCK
         }
     }
@@ -377,10 +379,12 @@ int register_browser(int browser_socket_fd) {
 
     for (int i = 0; i < NUM_BROWSER; ++i) {
         // START BROWSER LOCK
+        pthread_mutex_lock(&browser_list_mutex);
         if (!browser_list[i].in_use) {
             browser_id = i;
             browser_list[browser_id].in_use = true;
             browser_list[browser_id].socket_fd = browser_socket_fd;
+            pthread_mutex_unlock(&browser_list_mutex);
             // END BROWSER LOCK
             break;
         }
@@ -403,7 +407,9 @@ int register_browser(int browser_socket_fd) {
     }
 
     // START BROWSER LOCK
+    pthread_mutex_lock(&browser_list_mutex);        
     browser_list[browser_id].session_id = session_id;
+    pthread_mutex_unlock(&browser_list_mutex);
     // END BROWSER LOCK
 
     sprintf(message, "%d", session_id);
@@ -425,8 +431,10 @@ void browser_handler(int browser_socket_fd) {
     browser_id = register_browser(browser_socket_fd);
 
     // START BROWSER LOCK
+    pthread_mutex_lock(&browser_list_mutex);
     int socket_fd = browser_list[browser_id].socket_fd;
     int session_id = browser_list[browser_id].session_id;
+    pthread_mutex_unlock(&browser_list_mutex);
     // END BROWSER LOCK
 
     printf("Successfully accepted Browser #%d for Session #%d.\n", browser_id, session_id);
