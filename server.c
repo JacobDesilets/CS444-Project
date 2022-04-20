@@ -85,7 +85,9 @@ void start_server(int port);
 void session_to_str(int session_id, char result[]) {
     memset(result, 0, BUFFER_LEN);
     // START SESSION LOCK
+    pthread_mutex_lock(&session_list_mutex);
     session_t session = session_list[session_id];
+    pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
     for (int i = 0; i < NUM_VARIABLES; ++i) {
@@ -196,15 +198,20 @@ bool process_message(int session_id, const char message[]) {
 
         // first variable error checking part 3
         // START SESSION LOCK, both ends are needed because of the return
+        pthread_mutex_lock(&session_list_mutex);
         if(!session_list[session_id].variables[first_idx]) {
             printf("First variable DNE\n");
+            pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
         }
+        pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
 
         // START SESSION LOCK
+        pthread_mutex_lock(&session_list_mutex);
         first_value = session_list[session_id].values[first_idx];
+        pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
     }
 
@@ -212,8 +219,10 @@ bool process_message(int session_id, const char message[]) {
     token = strtok(NULL, " ");
     if (token == NULL) {
         // START SESSION LOCK
+        pthread_mutex_lock(&session_list_mutex);
         session_list[session_id].variables[result_idx] = true;
         session_list[session_id].values[result_idx] = first_value;
+        pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
         return true;
     }
@@ -251,15 +260,20 @@ bool process_message(int session_id, const char message[]) {
 
         // first variable error checking part 3
         // START SESSION LOCK, both ends are needed because of the return
+        pthread_mutex_lock(&session_list_mutex);
         if(!session_list[session_id].variables[second_idx]) {
             printf("Second variable DNE\n");
+            pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
         }
+        pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
 
         // START SESSION LOCK
+        pthread_mutex_lock(&session_list_mutex);
         second_value = session_list[session_id].values[second_idx];
+        pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
     }
 
@@ -273,7 +287,9 @@ bool process_message(int session_id, const char message[]) {
     }
 
     // START SESSION LOCK
+    pthread_mutex_lock(&session_list_mutex);
     session_list[session_id].variables[result_idx] = true;
+    pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
     if (symbol == '+') {
@@ -289,7 +305,9 @@ bool process_message(int session_id, const char message[]) {
     }
 
     // START SESSION LOCK
+    pthread_mutex_lock(&session_list_mutex);
     session_list[session_id].values[result_idx] = result;
+    pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
     return true;
@@ -337,7 +355,9 @@ void load_all_sessions() {
 
     	if(file = fopen(s, "r")){
             // START SESSION LOCK
+            pthread_mutex_lock(&session_list_mutex);
     	    fread(&session_list[i], sizeof(struct session_struct), 1, file);			
+            pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             fclose(file);       
         }
@@ -354,7 +374,9 @@ void save_session(int session_id) {
 	FILE *file;
 	char s[SESSION_PATH_LEN];
     // START SESSION LOCK
-	struct session_struct current = session_list[session_id];	
+	pthread_mutex_lock(&session_list_mutex);
+    struct session_struct current = session_list[session_id];	
+    pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
 	get_session_file_path(session_id, s);
@@ -397,12 +419,16 @@ int register_browser(int browser_socket_fd) {
     if (session_id == -1) {
         for (int i = 0; i < NUM_SESSIONS; ++i) {
             // START SESSION LOCK
+            pthread_mutex_lock(&session_list_mutex);
             if (!session_list[i].in_use) {
                 session_id = i;
                 session_list[session_id].in_use = true;
+                pthread_mutex_unlock(&session_list_mutex);
                 // END SESSION LOCK
                 break;
             }
+            pthread_mutex_unlock(&session_list_mutex);
+            // END SESSION LOCK
         }
     }
 
