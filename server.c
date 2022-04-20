@@ -156,14 +156,12 @@ bool process_message(int session_id, const char message[]) {
     // Processes the result variable.
     token = strtok(data, " ");
     if(token == NULL) {
-        printf("1st token empty\n");
         return false;
     }
     result_idx = token[0] - 'a';
 
     // first token error checking
     if(token[1] != '\0' || result_idx < 0 || result_idx > 25) {
-        printf("1st token invalid\n");
         return false;
     }
 
@@ -172,7 +170,6 @@ bool process_message(int session_id, const char message[]) {
 
     // second token error checking
     if(token == NULL || token[0] != '=' || token[1] != '\0') {
-        printf("2nd token invalid\n");
         return false;
     }
 
@@ -184,7 +181,6 @@ bool process_message(int session_id, const char message[]) {
 
         // first variable error checking part 1
         if(token == NULL) {
-            printf("3rd token empty\n");
             return false;
         }
 
@@ -192,7 +188,6 @@ bool process_message(int session_id, const char message[]) {
 
         // first variable error checking part 2
         if(token[1] != '\0' || first_idx < 0 || first_idx > 25) {
-            printf("3rd token invalid\n");
             return false;
         }
 
@@ -200,7 +195,6 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
         if(!session_list[session_id].variables[first_idx]) {
-            printf("First variable DNE\n");
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -233,7 +227,6 @@ bool process_message(int session_id, const char message[]) {
         !(symbol == '+' || symbol == '-' ||
             symbol == '*' || symbol == '/')
         ) {
-        printf("4st token invalid\n");
         return false;
     }
 
@@ -246,7 +239,6 @@ bool process_message(int session_id, const char message[]) {
 
         // second variable error checking part 1
         if(token == NULL) {
-            printf("5th token empty with operator\n");
             return false;
         }
         
@@ -254,7 +246,6 @@ bool process_message(int session_id, const char message[]) {
 
         // first variable error checking part 2
         if(token[1] != '\0' || second_idx < 0 || second_idx > 25) {
-            printf("5th token invalid\n");
             return false;
         }
 
@@ -262,7 +253,6 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
         if(!session_list[session_id].variables[second_idx]) {
-            printf("Second variable DNE\n");
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -282,7 +272,6 @@ bool process_message(int session_id, const char message[]) {
 
     // end of input error checking
     if(token != NULL) {
-        printf("6th token invalid\n");
         return false;
     }
 
@@ -410,6 +399,8 @@ int register_browser(int browser_socket_fd) {
             // END BROWSER LOCK
             break;
         }
+        pthread_mutex_unlock(&browser_list_mutex);
+            
     }
 
     char message[BUFFER_LEN];
@@ -489,7 +480,8 @@ void browser_handler(int browser_socket_fd) {
         bool data_valid = process_message(session_id, message);
         if (!data_valid) {
             // Part 3.1, send the error message to the browser.
-            printf("ERROR: Invalid user input\n");
+            printf("Message from Browser #%d for Session #%d is invalid.\n",
+                browser_id, session_id);
             broadcast(session_id, "ERROR\n");
             continue;
         }
@@ -535,19 +527,32 @@ void start_server(int port) {
     }
     printf("The server is now listening on port %d.\n", port);
 
+    pthread_t handler_thread_ids[NUM_BROWSER];
+    int current_browser_idx = 0;
+
     // Main loop to accept new browsers and creates handlers for them.
     while (true) {
         struct sockaddr_in browser_address;
         socklen_t browser_address_len = sizeof(browser_address);
-        int browser_socket_fd = accept(server_socket_fd, (struct sockaddr *) &browser_address, &browser_address_len);
+        int browser_socket_fd = accept(server_socket_fd,
+            (struct sockaddr *) &browser_address,
+            &browser_address_len);
         if ((browser_socket_fd) < 0) {
             perror("Socket accept failed");
             continue;
         }
 
         // Starts the handler thread for the new browser.
-        // TODO: For Part 2.1, creat a thread to run browser_handler() here.
-        browser_handler(browser_socket_fd);
+        // TODO: For Part 2.1, create a thread to run browser_handler() here.
+        pthread_create(&(handler_thread_ids[current_browser_idx]),
+            NULL,
+            (void*)browser_handler,
+            browser_socket_fd);
+        current_browser_idx++;
+    }
+
+    for(int i = 0; i < current_browser_idx; i++) {
+        pthread_join(handler_thread_ids[i], NULL);
     }
 
     // Closes the socket.
