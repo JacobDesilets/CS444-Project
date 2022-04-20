@@ -29,6 +29,34 @@ typedef struct session_struct {
     double values[NUM_VARIABLES];
 } session_t;
 
+// Hashmap implementation
+typedef struct entry_struct {
+    session_t* session;
+    int key;
+    struct entry_struct* collision;
+} hash_entry_t;
+
+int hash(int key) {
+    return key % HASH_SIZE
+}
+
+hash_entry_t* search_hashmap(int key, hash_entry_t* hashmap) {
+    int hash_index = hash(key);
+    hash_entry_t* current = hashmap[hash_index]
+    while (current != NULL) {
+        if (current -> key == key) {
+            return current;
+        } else {
+            current = current -> collision;
+        }
+    }
+    return NULL
+}
+
+hash_entry_t* add_hashmap(int key, session_t* data) {
+    
+}
+
 static browser_t browser_list[NUM_BROWSER];                             // Stores the information of all browsers.
 // TODO: For Part 3.2, convert the session_list to a simple hashmap/dictionary.
 static session_t session_list[NUM_SESSIONS];                            // Stores the information of all sessions.
