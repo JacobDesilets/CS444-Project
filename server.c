@@ -10,12 +10,14 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <netinet/in.h>
+#include <time.h>
 
 #define NUM_VARIABLES 26
 #define NUM_SESSIONS 128
 #define NUM_BROWSER 128
 #define DATA_DIR "./sessions"
 #define SESSION_PATH_LEN 128
+#define HASH_SIZE 128
 
 typedef struct browser_struct {
     bool in_use;
@@ -36,30 +38,124 @@ typedef struct entry_struct {
     struct entry_struct* collision;
 } hash_entry_t;
 
+typedef struct hashmap_struct {
+    hash_entry_t **entries;
+} hashmap_t;
+
 int hash(int key) {
-    return key % HASH_SIZE
+    return key % HASH_SIZE;
 }
 
-hash_entry_t* search_hashmap(int key, hash_entry_t* hashmap) {
-    int hash_index = hash(key);
-    hash_entry_t* current = hashmap[hash_index]
-    while (current != NULL) {
-        if (current -> key == key) {
-            return current;
-        } else {
-            current = current -> collision;
-        }
+hashmap_t* create_hashmap() {
+    hashmap_t* hashmap = malloc(sizeof(hashmap_t));
+    hashmap -> entries = malloc(sizeof(hash_entry_t*) * HASH_SIZE);
+
+    // Initialize each entry to NULL
+    for (int i = 0; i < HASH_SIZE; ++i) {
+        hashmap -> entries[i] = NULL;
     }
-    return NULL
+
+    return hashmap;
 }
 
-hash_entry_t* add_hashmap(int key, session_t* data) {
-    
+hash_entry_t* set_hash_entry(hashmap_t* hashmap, int key, session_t* data) {
+    int hash_index = hash(key);
+    hash_entry_t* entry = hashmap -> entries[hash_index];
+
+    if (entry == NULL) {
+        hashmap -> entries[hash_index] = malloc(sizeof(hash_entry_t*));
+        hash_entry_t* entry = hashmap -> entries[hash_index];
+        entry -> session = malloc(sizeof(session_t*));
+        memcpy(entry -> session, data, sizeof(session_t*));
+        entry -> key = key;
+        entry -> collision = NULL;
+
+        return entry;
+    }
+
+    hash_entry_t* previous;
+
+    while (entry != NULL) {
+        if (entry -> key == key) {
+            entry -> session = data;
+            return entry;
+        }
+
+        previous = entry;
+        entry = previous -> collision;
+
+    }
+
+    hash_entry_t* new_entry = malloc(sizeof(hash_entry_t*));
+    new_entry -> session = malloc(sizeof(session_t*));
+    memcpy(new_entry -> session, data, sizeof(session_t*));
+    new_entry -> key = key;
+    new_entry -> collision = NULL;
+
+    previous -> collision = new_entry;
+
 }
+
+hash_entry_t* get_hash_entry(hashmap_t* hashmap, int key) {
+    int hash_index = hash(key);
+    hash_entry_t* entry = hashmap -> entries[hash_index];
+
+    while (entry != NULL) {
+        if (entry -> key == key) {
+            return entry;
+        }
+        entry = entry -> collision;
+    }
+
+    return NULL;
+}
+
+bool destroy_hash_entry(hashmap_t* hashmap, int key) {
+    int hash_index = hash(key);
+    hash_entry_t* entry = hashmap -> entries[hash_index];
+
+    if (entry -> collision == NULL)
+    {
+        free(entry -> session);
+        free(entry);
+        return true;
+    }
+
+    hash_entry_t* previous = NULL;
+
+    while (entry != NULL) {
+        if (entry -> key == key) {
+            hash_entry_t* next = entry -> collision;
+            if (next != NULL) {
+                if (previous = NULL) {
+                    hash_entry_t* new_entry;
+                    new_entry -> session = entry -> session;
+                    new_entry -> collision = next -> collision;
+                    new_entry -> key = key;
+                    hashmap -> entries[hash_index] = new_entry;
+                } else {
+                    previous -> collision = next;
+                }
+            }
+            free(entry -> collision);
+            free(entry -> session);
+            free(entry);
+            entry = NULL;
+
+            return true;
+        }
+        previous = entry;
+        entry = entry -> collision;
+    }
+
+    return false;
+}
+
 
 static browser_t browser_list[NUM_BROWSER];                             // Stores the information of all browsers.
 // TODO: For Part 3.2, convert the session_list to a simple hashmap/dictionary.
-static session_t session_list[NUM_SESSIONS];                            // Stores the information of all sessions.
+//static session_t session_list[NUM_SESSIONS];                            // Stores the information of all sessions.
+static hashmap_t* session_list;
 static pthread_mutex_t browser_list_mutex = PTHREAD_MUTEX_INITIALIZER;  // A mutex lock for the browser list.
 static pthread_mutex_t session_list_mutex = PTHREAD_MUTEX_INITIALIZER;  // A mutex lock for the session list.
 
@@ -114,7 +210,8 @@ void session_to_str(int session_id, char result[]) {
     memset(result, 0, BUFFER_LEN);
     // START SESSION LOCK
     pthread_mutex_lock(&session_list_mutex);
-    session_t session = session_list[session_id];
+    //session_t session = session_list[session_id];
+    session_t session = *((get_hash_entry(session_list, session_id)) -> session);
     pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
@@ -222,7 +319,9 @@ bool process_message(int session_id, const char message[]) {
         // first variable error checking part 3
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
-        if(!session_list[session_id].variables[first_idx]) {
+        //if(!session_list[session_id].variables[first_idx]) {
+        printf("GOT HERE 1");
+        if((get_hash_entry(session_list, session_id) -> session -> variables)[first_idx]) {
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -232,7 +331,8 @@ bool process_message(int session_id, const char message[]) {
 
         // START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
-        first_value = session_list[session_id].values[first_idx];
+        //first_value = session_list[session_id].values[first_idx];
+        first_value = (get_hash_entry(session_list, session_id) -> session -> variables)[first_idx];
         pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
     }
@@ -242,8 +342,10 @@ bool process_message(int session_id, const char message[]) {
     if (token == NULL) {
         // START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
-        session_list[session_id].variables[result_idx] = true;
-        session_list[session_id].values[result_idx] = first_value;
+        //session_list[session_id].variables[result_idx] = true;
+        get_hash_entry(session_list, session_id)->session->variables[result_idx] = true;
+        //session_list[session_id].values[result_idx] = first_value;
+        get_hash_entry(session_list, session_id) -> session -> values[result_idx] = first_value;
         pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
         return true;
@@ -280,7 +382,8 @@ bool process_message(int session_id, const char message[]) {
         // first variable error checking part 3
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
-        if(!session_list[session_id].variables[second_idx]) {
+        //if(!session_list[session_id].variables[second_idx]) {
+        if(!(get_hash_entry(session_list, session_id) -> session -> variables)[second_idx]) {
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -290,7 +393,8 @@ bool process_message(int session_id, const char message[]) {
 
         // START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
-        second_value = session_list[session_id].values[second_idx];
+        //second_value = session_list[session_id].values[second_idx];
+        second_value = (get_hash_entry(session_list, session_id) -> session -> values)[second_idx];
         pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
     }
@@ -305,7 +409,8 @@ bool process_message(int session_id, const char message[]) {
 
     // START SESSION LOCK
     pthread_mutex_lock(&session_list_mutex);
-    session_list[session_id].variables[result_idx] = true;
+    //session_list[session_id].variables[result_idx] = true;
+    (get_hash_entry(session_list, session_id) -> session -> variables)[result_idx] = true;
     pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
@@ -323,7 +428,8 @@ bool process_message(int session_id, const char message[]) {
 
     // START SESSION LOCK
     pthread_mutex_lock(&session_list_mutex);
-    session_list[session_id].values[result_idx] = result;
+    //session_list[session_id].values[result_idx] = result;
+    (get_hash_entry(session_list, session_id) -> session -> values)[result_idx] = result;
     pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
@@ -373,7 +479,7 @@ void load_all_sessions() {
     	if(file = fopen(s, "r")){
             // START SESSION LOCK
             pthread_mutex_lock(&session_list_mutex);
-    	    fread(&session_list[i], sizeof(struct session_struct), 1, file);			
+    	    fread(&(session_list -> entries[i] -> session), sizeof(struct session_struct), 1, file);			
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             fclose(file);       
@@ -392,7 +498,8 @@ void save_session(int session_id) {
 	char s[SESSION_PATH_LEN];
     // START SESSION LOCK
 	pthread_mutex_lock(&session_list_mutex);
-    struct session_struct current = session_list[session_id];	
+    //struct session_struct current = session_list[session_id];	
+    struct session_struct current = *(get_hash_entry(session_list, session_id) -> session);	
     pthread_mutex_unlock(&session_list_mutex);
     // END SESSION LOCK
 
@@ -434,21 +541,35 @@ int register_browser(int browser_socket_fd) {
     char message[BUFFER_LEN];
     receive_message(browser_socket_fd, message);
 
-    int session_id = strtol(message, NULL, 10);
+    //int session_id = strtol(message, NULL, 10);
+    int session_id = -1;
     if (session_id == -1) {
-        for (int i = 0; i < NUM_SESSIONS; ++i) {
-            // START SESSION LOCK
-            pthread_mutex_lock(&session_list_mutex);
-            if (!session_list[i].in_use) {
-                session_id = i;
-                session_list[session_id].in_use = true;
-                pthread_mutex_unlock(&session_list_mutex);
-                // END SESSION LOCK
-                break;
-            }
-            pthread_mutex_unlock(&session_list_mutex);
-            // END SESSION LOCK
-        }
+        printf("GOT HERE!\n");
+    //     for (int i = 0; i < NUM_SESSIONS; ++i) {
+    //         // START SESSION LOCK
+    //         pthread_mutex_lock(&session_list_mutex);
+    //         if (!session_list[i].in_use) {
+    //             session_id = i;
+    //             session_list[session_id].in_use = true;
+    //             pthread_mutex_unlock(&session_list_mutex);
+    //             // END SESSION LOCK
+    //             break;
+    //         }
+    //         pthread_mutex_unlock(&session_list_mutex);
+    //         // END SESSION LOCK
+    //     }
+        //START SESSION LOCK
+        pthread_mutex_lock(&session_list_mutex);
+        
+        srand(time(NULL));
+        session_id = rand() % 1000;
+        
+        session_t* s;
+        hash_entry_t* entry = set_hash_entry(session_list, session_id, s);
+        entry->session->in_use = true;
+
+        pthread_mutex_unlock(&session_list_mutex);
+        //END SESSION LOCK
     }
 
     // START BROWSER LOCK
@@ -596,6 +717,9 @@ void start_server(int port) {
  */
 int main(int argc, char *argv[]) {
     int port = DEFAULT_PORT;
+
+    // Initiliaze session list hashmap
+    session_list = create_hashmap();
 
     if (argc == 1) {
     } else if ((argc == 3)
