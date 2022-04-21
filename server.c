@@ -482,7 +482,7 @@ void load_all_sessions() {
         sscanf(s, "./sessions/session%d.dat", &s_id);
         //printf("trying to load %d\n", s_id);
     	if(file = fopen(s, "r")){
-            printf("loaded session %d\n", s_id);
+            // printf("loaded session %d\n", s_id);
             // START SESSION LOCK
             pthread_mutex_lock(&session_list_mutex);
             session_t* s = malloc(sizeof(session_t));
