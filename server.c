@@ -66,6 +66,8 @@ hash_entry_t* set_hash_entry(hashmap_t* hashmap, int key, session_t* data) {
         hashmap -> entries[hash_index] = malloc(sizeof(hash_entry_t*));
         hash_entry_t* n_entry = hashmap -> entries[hash_index];
         n_entry -> session = data;
+        memset(n_entry->session->values, 0, sizeof(n_entry->session->values));
+        memset(n_entry->session->variables, 0, sizeof(n_entry->session->variables));
         n_entry -> key = key;
         n_entry -> collision = NULL;
 
@@ -77,6 +79,8 @@ hash_entry_t* set_hash_entry(hashmap_t* hashmap, int key, session_t* data) {
     while (entry != NULL) {
         if (entry -> key == key) {
             entry -> session = data;
+            memset(entry->session->values, 0, sizeof(entry->session->values));
+            memset(entry->session->variables, 0, sizeof(entry->session->variables));
             return entry;
         }
 
@@ -473,13 +477,18 @@ void load_all_sessions() {
     for(int i = 0; i < NUM_SESSIONS; i++){
 
     	get_session_file_path(i, s);
-
+        //printf(s);
+        int s_id = -1;
+        sscanf(s, "./sessions/session%d.dat", &s_id);
+        //printf("trying to load %d\n", s_id);
     	if(file = fopen(s, "r")){
+            printf("loaded session %d\n", s_id);
             // START SESSION LOCK
             pthread_mutex_lock(&session_list_mutex);
-            if (session_list->entries[i] != NULL) {
-    	        fread(&(session_list->entries[i]->session), sizeof(struct session_struct), 1, file);
-            }
+            session_t* s = malloc(sizeof(session_t));
+            hash_entry_t* entry = set_hash_entry(session_list, s_id, s);
+    	    fread(entry->session, sizeof(struct session_struct), 1, file);
+            //printf("%f", entry->session->values[0]);
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             fclose(file);       
@@ -506,7 +515,7 @@ void save_session(int session_id) {
 	get_session_file_path(session_id, s);
 	file = fopen(s, "w");
 	fwrite(&current, sizeof(struct session_struct), 1, file);
-        fclose(file);
+    fclose(file);
 }
 
 /**
@@ -556,24 +565,11 @@ int register_browser(int browser_socket_fd) {
         
     }
     if (session_id == -1) {
-    //     for (int i = 0; i < NUM_SESSIONS; ++i) {
-    //         // START SESSION LOCK
-    //         pthread_mutex_lock(&session_list_mutex);
-    //         if (!session_list[i].in_use) {
-    //             session_id = i;
-    //             session_list[session_id].in_use = true;
-    //             pthread_mutex_unlock(&session_list_mutex);
-    //             // END SESSION LOCK
-    //             break;
-    //         }
-    //         pthread_mutex_unlock(&session_list_mutex);
-    //         // END SESSION LOCK
-    //     }
         //START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
         
         srand(time(NULL));
-        session_id = rand() % 1000;
+        session_id = rand() % NUM_SESSIONS;
         
         session_t* s = malloc(sizeof(session_t));
         hash_entry_t* entry = set_hash_entry(session_list, session_id, s);
