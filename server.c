@@ -319,7 +319,7 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
         //if(!session_list[session_id].variables[first_idx]) {
-        if((get_hash_entry(session_list, session_id)->session->variables)[first_idx]) {
+        if((get_hash_entry(session_list, session_id) -> session -> variables)[first_idx]) {
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -330,7 +330,7 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
         //first_value = session_list[session_id].values[first_idx];
-        first_value = (get_hash_entry(session_list, session_id)->session->values)[first_idx];
+        first_value = (get_hash_entry(session_list, session_id) -> session -> values)[first_idx];
         pthread_mutex_unlock(&session_list_mutex);
         // END SESSION LOCK
     }
@@ -477,7 +477,9 @@ void load_all_sessions() {
     	if(file = fopen(s, "r")){
             // START SESSION LOCK
             pthread_mutex_lock(&session_list_mutex);
-    	    fread(&(session_list -> entries[i] -> session), sizeof(struct session_struct), 1, file);			
+            if (session_list->entries[i] != NULL) {
+    	        fread(&(session_list->entries[i]->session), sizeof(struct session_struct), 1, file);
+            }
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             fclose(file);       
@@ -542,11 +544,18 @@ int register_browser(int browser_socket_fd) {
     int session_id = strtol(message, NULL, 10);
     if (session_id != -1) {
         pthread_mutex_lock(&session_list_mutex);
-        session_t* s = malloc(sizeof(session_t));
-        hash_entry_t* entry = set_hash_entry(session_list, session_id, s);
-        entry->session->in_use = true;
+        hash_entry_t* entry = get_hash_entry(session_list, session_id);
+        if (entry != NULL) {
+            entry->session->in_use = true;
+        } else {
+            session_t* s = malloc(sizeof(session_t));
+            hash_entry_t* entry = set_hash_entry(session_list, session_id, s);
+            entry->session->in_use = true;
+        }
         pthread_mutex_unlock(&session_list_mutex);
-    } else {
+        
+    }
+    if (session_id == -1) {
     //     for (int i = 0; i < NUM_SESSIONS; ++i) {
     //         // START SESSION LOCK
     //         pthread_mutex_lock(&session_list_mutex);
