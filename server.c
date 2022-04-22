@@ -43,7 +43,7 @@ typedef struct hashmap_struct {
 } hashmap_t;
 
 int hash(int key) {
-    return key % HASH_SIZE;
+    return key * 37 % HASH_SIZE;
 }
 
 hashmap_t* create_hashmap() {
