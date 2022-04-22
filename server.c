@@ -323,7 +323,7 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
         //if(!session_list[session_id].variables[first_idx]) {
-        if((get_hash_entry(session_list, session_id) -> session -> variables)[first_idx]) {
+        if(!(get_hash_entry(session_list, session_id) -> session -> variables)[first_idx]) {
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
@@ -385,7 +385,7 @@ bool process_message(int session_id, const char message[]) {
         // START SESSION LOCK, both ends are needed because of the return
         pthread_mutex_lock(&session_list_mutex);
         //if(!session_list[session_id].variables[second_idx]) {
-        if(!(get_hash_entry(session_list, session_id) -> session -> variables)[second_idx]) {
+        if(!(get_hash_entry(session_list, session_id)->session->variables)[second_idx]) {
             pthread_mutex_unlock(&session_list_mutex);
             // END SESSION LOCK
             return false;
