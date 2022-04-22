@@ -563,13 +563,19 @@ int register_browser(int browser_socket_fd) {
         }
         pthread_mutex_unlock(&session_list_mutex);
         
-    }
-    if (session_id == -1) {
+    } else {
         //START SESSION LOCK
         pthread_mutex_lock(&session_list_mutex);
         
         srand(time(NULL));
-        session_id = rand() % NUM_SESSIONS;
+
+        // Ensure Session ID is unique
+        while(1) {
+            session_id = rand() % NUM_SESSIONS;
+            if (get_hash_entry(session_list, session_id) == NULL) {
+                break;
+            }
+        }
         
         session_t* s = malloc(sizeof(session_t));
         hash_entry_t* entry = set_hash_entry(session_list, session_id, s);
