@@ -114,7 +114,10 @@ void server_listener() {
     while (browser_on) {
         char message[BUFFER_LEN];
         receive_message(server_socket_fd, message);
-
+	if(strncmp(message, "EXIT", 4)){
+	  browser_on = !browser_on;
+	  exit(1);
+	}
         if(!strncmp(message, "ERROR", 5)) {
             strcpy(message, "Invalid Input!\n");
         }
@@ -176,7 +179,7 @@ void start_browser(const char host_ip[], int port) {
 	signal(SIGINT, lost_signal);
 	read_user_input(message);
         send_message(server_socket_fd, message);
-   
+	
     }
 
     // Stops server listener thread
