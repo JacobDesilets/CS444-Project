@@ -9,6 +9,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <arpa/inet.h>
+#include <signal.h>
 
 #define COOKIE_PATH "./browser.cookie"
 
@@ -122,6 +123,14 @@ void server_listener() {
 }
 
 /**
+ * Fires when signal is lost, sends "exit" to the server to close the connection and then exits.
+*/
+void lost_signal(int s){
+  send_message(server_socket_fd, "exit");
+  exit(s);
+}
+
+/**
  * Starts the browser. Sets up the connection, start the listener thread,
  * and keeps a loop to read in the user's input and send it out.
  * 
@@ -131,7 +140,6 @@ void server_listener() {
 void start_browser(const char host_ip[], int port) {
     // Loads the cookies if there exists one on the disk.
     load_cookie();
-
     // Creates the socket.
     server_socket_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server_socket_fd < 0) {
@@ -165,8 +173,10 @@ void start_browser(const char host_ip[], int port) {
     // Main loop to read in the user's input and send it out.
     while (browser_on) {
         char message[BUFFER_LEN];
-        read_user_input(message);
+	signal(SIGINT, lost_signal);
+	read_user_input(message);
         send_message(server_socket_fd, message);
+   
     }
 
     // Stops server listener thread
