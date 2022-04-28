@@ -606,8 +606,7 @@ void signal_kill(int sig)
 {
   int i;
   for(int i = 0; i < NUM_SESSIONS; i++){
-    broadcast(i, "Server connection lost.");
-    broadcast(i, "EXIT");
+     broadcast(i, "EXIT");
   }
 }
 

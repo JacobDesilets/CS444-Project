@@ -114,7 +114,7 @@ void server_listener() {
     while (browser_on) {
         char message[BUFFER_LEN];
         receive_message(server_socket_fd, message);
-	if(strncmp(message, "EXIT", 4)){
+	if(!strncmp(message, "EXIT", 4)){
 	  browser_on = !browser_on;
 	  exit(1);
 	}
