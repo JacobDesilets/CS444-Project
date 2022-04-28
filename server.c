@@ -597,17 +597,19 @@ int register_browser(int browser_socket_fd) {
 
     return browser_id;
 }
-volatile int signal_lost = 0;
+
 /**
  * Returns if signal is lost
  *
  */
 void signal_kill(int sig)
 {
+  printf("server shutdown.\n\n");
   int i;
-  for(int i = 0; i < NUM_SESSIONS; i++){
+  for(i = 0; i < NUM_SESSIONS; i++){
      broadcast(i, "EXIT");
   }
+  exit(sig);
 }
 
 
@@ -635,10 +637,13 @@ void browser_handler(int browser_socket_fd) {
     while (true) {
         char message[BUFFER_LEN];
         char response[BUFFER_LEN];
+	signal(SIGINT, signal_kill);
 
         receive_message(socket_fd, message);
         printf("Received message from Browser #%d for Session #%d: %s\n", browser_id, session_id, message);
-		
+
+	
+	
         if ((strcmp(message, "EXIT") == 0) || (strcmp(message, "exit") == 0)) {
             close(socket_fd);
             // BROWSER LOCK this may need to be revised if needed? not sure though

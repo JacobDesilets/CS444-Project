@@ -57,7 +57,7 @@ void read_user_input(char message[]) {
     }
 
     if ((strcmp(message, "EXIT") == 0) || (strcmp(message, "exit") == 0)) {
-        browser_on = false;
+      browser_on = false;
     }
 }
 
@@ -114,10 +114,11 @@ void server_listener() {
     while (browser_on) {
         char message[BUFFER_LEN];
         receive_message(server_socket_fd, message);
-	if(!strncmp(message, "EXIT", 4)){
-	  browser_on = !browser_on;
-	  exit(1);
-	}
+	if(strcmp(message, "EXIT") == 0){
+	    printf("connection to server lost.\n");
+	    browser_on = !browser_on;
+	    exit(1);
+	  }
         if(!strncmp(message, "ERROR", 5)) {
             strcpy(message, "Invalid Input!\n");
         }
