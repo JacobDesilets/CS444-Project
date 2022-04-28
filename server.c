@@ -1,4 +1,5 @@
 #include "net_util.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
@@ -10,8 +11,6 @@
 #include <sys/stat.h>
 #include <netinet/in.h>
 #include <time.h>
-#include <signal.h>
-#include <assert.h>
 
 #define NUM_VARIABLES 26
 #define NUM_SESSIONS 128
@@ -597,19 +596,6 @@ int register_browser(int browser_socket_fd) {
 
     return browser_id;
 }
-volatile int signal_lost = 0;
-/**
- * Returns if signal is lost
- *
- */
-void signal_kill(int sig)
-{
-  int i;
-  for(int i = 0; i < NUM_SESSIONS; i++){
-     broadcast(i, "EXIT");
-  }
-}
-
 
 /**
  * Handles the given browser by listening to it, processing the message received,
@@ -638,7 +624,7 @@ void browser_handler(int browser_socket_fd) {
 
         receive_message(socket_fd, message);
         printf("Received message from Browser #%d for Session #%d: %s\n", browser_id, session_id, message);
-		
+
         if ((strcmp(message, "EXIT") == 0) || (strcmp(message, "exit") == 0)) {
             close(socket_fd);
             // BROWSER LOCK this may need to be revised if needed? not sure though
