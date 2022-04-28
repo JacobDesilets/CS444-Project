@@ -604,12 +604,12 @@ int register_browser(int browser_socket_fd) {
  */
 void signal_kill(int sig)
 {
-  printf("server shutdown.\n\n");
-  int i;
-  for(i = 0; i < NUM_SESSIONS; i++){
-     broadcast(i, "EXIT");
-  }
-  exit(sig);
+    printf("\nServer Shutting Down...\n\n");
+    int i;
+    for(i = 0; i < NUM_SESSIONS; i++){
+        broadcast(i, "EXIT");
+    }
+    exit(sig);
 }
 
 
