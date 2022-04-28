@@ -598,6 +598,20 @@ int register_browser(int browser_socket_fd) {
 }
 
 /**
+ * Returns if signal is lost
+ *
+ */
+void signal_kill(int sig)
+{
+    printf("\nServer Shutting Down...\n\n");
+    int i;
+    for(i = 0; i < NUM_SESSIONS; i++){
+        broadcast(i, "EXIT");
+    }
+    exit(sig);
+}
+
+/**
  * Handles the given browser by listening to it, processing the message received,
  * broadcasting the update to all browsers with the same session ID, and backing up
  * the session on the disk.
@@ -621,6 +635,7 @@ void browser_handler(int browser_socket_fd) {
     while (true) {
         char message[BUFFER_LEN];
         char response[BUFFER_LEN];
+	signal(SIGINT, signal_kill);
 
         receive_message(socket_fd, message);
         printf("Received message from Browser #%d for Session #%d: %s\n", browser_id, session_id, message);
